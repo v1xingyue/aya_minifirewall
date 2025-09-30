@@ -119,7 +119,7 @@ fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
 fn block_ip(ip: &str) -> Result<(), anyhow::Error> {
     let ip_addr: Ipv4Addr = ip.parse()?;
     let ip_u32 = u32::from(ip_addr);
-    
+
     // In a real implementation, you would interact with the eBPF maps here
     // For this demo, we'll just print the action
     info!("Blocking IP: {} ({})", ip, ip_u32);
@@ -129,7 +129,7 @@ fn block_ip(ip: &str) -> Result<(), anyhow::Error> {
 fn unblock_ip(ip: &str) -> Result<(), anyhow::Error> {
     let ip_addr: Ipv4Addr = ip.parse()?;
     let ip_u32 = u32::from(ip_addr);
-    
+
     info!("Unblocking IP: {} ({})", ip, ip_u32);
     Ok(())
 }

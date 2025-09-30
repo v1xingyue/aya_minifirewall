@@ -11,4 +11,4 @@ aya-ebpf = "0.12"
 aya-log-ebpf = "0.2"
 
 [build-dependencies]
-aya-build = "0.12"
+aya-build = "0.1"
