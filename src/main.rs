@@ -1,12 +1,11 @@
-// eBPF imports are conditionally used
-// #[cfg(target_os = "linux")]
-// use aya::{
-//     include_bytes_aligned,
-//     programs::{Xdp, XdpFlags},
-//     Bpf,
-// };
-// #[cfg(target_os = "linux")]
-// use aya_log::BpfLogger;
+#[cfg(target_os = "linux")]
+use aya::{
+    include_bytes_aligned,
+    programs::{Xdp, XdpFlags},
+    Bpf,
+};
+#[cfg(target_os = "linux")]
+use aya_log::BpfLogger;
 use clap::{Parser, Subcommand};
 use log::info;
 use std::net::Ipv4Addr;
@@ -92,16 +91,26 @@ fn main() -> Result<(), anyhow::Error> {
 fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
     #[cfg(target_os = "linux")]
     {
-        // For now, just show a demo message since eBPF program needs to be built first
-        info!("eBPF firewall demo mode on interface: {}", interface);
-        info!("To enable full functionality:");
-        info!("1. Build eBPF program: cd aya-minifirewall-ebpf && cargo build --release --target bpfel-unknown-none");
-        info!(
-            "2. Run with root privileges: sudo ./aya-minifirewall load --interface {}",
-            interface
-        );
+        info!("=== Aya Mini Firewall Demo ===");
+        info!("Interface: {}", interface);
+        info!("");
+        info!("To enable full eBPF functionality:");
+        info!("1. Build eBPF program:");
+        info!("   cd aya-minifirewall-ebpf");
+        info!("   cargo build --release --target bpfel-unknown-none");
+        info!("");
+        info!("2. Run with root privileges:");
+        info!("   sudo ./aya-minifirewall load --interface {}", interface);
+        info!("");
+        info!("3. Test firewall rules:");
+        info!("   sudo ./aya-minifirewall block-ip 192.168.1.100");
+        info!("   sudo ./aya-minifirewall block-port 80");
+        info!("   sudo ./aya-minifirewall list");
+        info!("");
+        info!("Current mode: Demo (no actual packet filtering)");
+        info!("Press Ctrl+C to exit...");
 
-        // Keep the program running for demo
+        // 保持程序运行
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
 
