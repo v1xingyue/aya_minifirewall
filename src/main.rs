@@ -93,7 +93,8 @@ fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
     #[cfg(target_os = "linux")]
     {
         // Check if eBPF program exists
-        let ebpf_path = "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf";
+        let ebpf_path =
+            "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf";
         if !std::path::Path::new(ebpf_path).exists() {
             return Err(anyhow::anyhow!(
                 "eBPF program not found at {}. Please build the eBPF program first with: cd aya-minifirewall-ebpf && cargo build --release --target bpfel-unknown-none",
