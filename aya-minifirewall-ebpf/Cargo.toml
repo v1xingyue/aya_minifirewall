@@ -7,8 +7,8 @@ description = "eBPF program for mini firewall"
 license = "MIT"
 
 [dependencies]
-aya-ebpf = "0.12"
-aya-log-ebpf = "0.2"
+aya-ebpf = "0.1"
+aya-log-ebpf = "0.1"
 
 [build-dependencies]
 aya-build = "0.1"
