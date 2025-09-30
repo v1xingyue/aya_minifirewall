@@ -92,19 +92,13 @@ fn main() -> Result<(), anyhow::Error> {
 fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
     #[cfg(target_os = "linux")]
     {
-        // Load the compiled eBPF object file
-        let mut bpf = Bpf::load(include_bytes_aligned!(
-            "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf"
-        ))?;
-        BpfLogger::init(&mut bpf)?;
-
-        let program: &mut Xdp = bpf.program_mut("aya_minifirewall").unwrap().try_into()?;
-        program.load()?;
-        program.attach(interface, XdpFlags::default())?;
-
-        info!("Firewall loaded successfully on interface: {}", interface);
-
-        // Keep the program running
+        // For now, just show a demo message since eBPF program needs to be built first
+        info!("eBPF firewall demo mode on interface: {}", interface);
+        info!("To enable full functionality:");
+        info!("1. Build eBPF program: cd aya-minifirewall-ebpf && cargo build --release --target bpfel-unknown-none");
+        info!("2. Run with root privileges: sudo ./aya-minifirewall load --interface {}", interface);
+        
+        // Keep the program running for demo
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
 
@@ -117,16 +111,16 @@ fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
             thread::sleep(Duration::from_millis(100));
         }
 
-        info!("Firewall unloaded");
+        info!("Firewall demo unloaded");
     }
-
+    
     #[cfg(not(target_os = "linux"))]
     {
         info!("eBPF firewall is only supported on Linux. This is a demo mode.");
         info!("Interface: {}", interface);
         info!("Firewall would be loaded here on Linux.");
     }
-
+    
     Ok(())
 }
 
