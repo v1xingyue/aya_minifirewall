@@ -1,18 +1,18 @@
-#[cfg(target_os = "linux")]
-use aya::{
-    include_bytes_aligned,
-    programs::{Xdp, XdpFlags},
-    Bpf,
-};
-#[cfg(target_os = "linux")]
-use aya_log::BpfLogger;
+// eBPF imports are conditionally used
+// #[cfg(target_os = "linux")]
+// use aya::{
+//     include_bytes_aligned,
+//     programs::{Xdp, XdpFlags},
+//     Bpf,
+// };
+// #[cfg(target_os = "linux")]
+// use aya_log::BpfLogger;
 use clap::{Parser, Subcommand};
 use log::info;
 use std::net::Ipv4Addr;
 
 #[cfg(target_os = "linux")]
 use std::{
-    convert::TryInto,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
