@@ -1,15 +1,18 @@
+#[cfg(target_os = "linux")]
 use aya::{
     include_bytes_aligned,
-    maps::HashMap,
     programs::{Xdp, XdpFlags},
-    Bpf,
+    Ebpf,
 };
-use aya_log::BpfLogger;
+#[cfg(target_os = "linux")]
+use aya_log::EbpfLogger;
 use clap::{Parser, Subcommand};
-use log::{info, warn};
+use log::info;
+use std::net::Ipv4Addr;
+
+#[cfg(target_os = "linux")]
 use std::{
     convert::TryInto,
-    net::Ipv4Addr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -87,32 +90,43 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
-    // This would be the path to the compiled eBPF object file
-    let mut bpf = Bpf::load(include_bytes_aligned!(
-        "../../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf"
-    ))?;
-    BpfLogger::init(&mut bpf)?;
+    #[cfg(target_os = "linux")]
+    {
+        // This would be the path to the compiled eBPF object file
+        let mut bpf = Ebpf::load(include_bytes_aligned!(
+            "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf"
+        ))?;
+        EbpfLogger::init(&mut bpf)?;
 
-    let program: &mut Xdp = bpf.program_mut("aya_minifirewall").unwrap().try_into()?;
-    program.load()?;
-    program.attach(interface, XdpFlags::default())?;
+        let program: &mut Xdp = bpf.program_mut("aya_minifirewall").unwrap().try_into()?;
+        program.load()?;
+        program.attach(interface, XdpFlags::default())?;
 
-    info!("Firewall loaded successfully on interface: {}", interface);
+        info!("Firewall loaded successfully on interface: {}", interface);
 
-    // Keep the program running
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
+        // Keep the program running
+        let running = Arc::new(AtomicBool::new(true));
+        let r = running.clone();
 
-    ctrlc::set_handler(move || {
-        info!("Shutting down...");
-        r.store(false, Ordering::SeqCst);
-    })?;
+        ctrlc::set_handler(move || {
+            info!("Shutting down...");
+            r.store(false, Ordering::SeqCst);
+        })?;
 
-    while running.load(Ordering::SeqCst) {
-        thread::sleep(Duration::from_millis(100));
+        while running.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        info!("Firewall unloaded");
     }
 
-    info!("Firewall unloaded");
+    #[cfg(not(target_os = "linux"))]
+    {
+        info!("eBPF firewall is only supported on Linux. This is a demo mode.");
+        info!("Interface: {}", interface);
+        info!("Firewall would be loaded here on Linux.");
+    }
+
     Ok(())
 }
 

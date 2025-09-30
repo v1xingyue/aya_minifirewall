@@ -11,13 +11,15 @@ name = "aya-minifirewall"
 path = "src/main.rs"
 
 [dependencies]
-aya = "0.12"
-aya-log = "0.2"
 clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
 log = "0.4"
 env_logger = "0.10"
 ctrlc = "3.4"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+aya = "0.12"
+aya-log = "0.2"
 
 [build-dependencies]
 aya-build = "0.1"
