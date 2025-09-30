@@ -96,8 +96,11 @@ fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
         info!("eBPF firewall demo mode on interface: {}", interface);
         info!("To enable full functionality:");
         info!("1. Build eBPF program: cd aya-minifirewall-ebpf && cargo build --release --target bpfel-unknown-none");
-        info!("2. Run with root privileges: sudo ./aya-minifirewall load --interface {}", interface);
-        
+        info!(
+            "2. Run with root privileges: sudo ./aya-minifirewall load --interface {}",
+            interface
+        );
+
         // Keep the program running for demo
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
@@ -113,14 +116,14 @@ fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
 
         info!("Firewall demo unloaded");
     }
-    
+
     #[cfg(not(target_os = "linux"))]
     {
         info!("eBPF firewall is only supported on Linux. This is a demo mode.");
         info!("Interface: {}", interface);
         info!("Firewall would be loaded here on Linux.");
     }
-    
+
     Ok(())
 }
 
