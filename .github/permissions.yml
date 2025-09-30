@@ -1,0 +1,12 @@
+# GitHub Actions 权限配置
+# 这个文件定义了 GitHub Actions 的权限设置
+
+# 默认权限
+permissions:
+  contents: read
+  packages: read
+  issues: read
+  pull-requests: read
+
+# 对于 release 工作流，需要写入权限
+# 这些权限在 workflow 文件中单独设置

@@ -1,0 +1,14 @@
+[package]
+name = "aya-minifirewall-ebpf"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "eBPF program for mini firewall"
+license = "MIT"
+
+[dependencies]
+aya-ebpf = "0.12"
+aya-log-ebpf = "0.2"
+
+[build-dependencies]
+aya-build = "0.12"

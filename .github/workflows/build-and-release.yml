@@ -1,0 +1,248 @@
+name: Build and Release
+
+on:
+    push:
+        tags:
+            - "v*"
+    workflow_dispatch:
+        inputs:
+            version:
+                description: "Version to release (e.g., v1.0.0)"
+                required: true
+                default: "v1.0.0"
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    build:
+        name: Build eBPF and Userspace Programs
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Install Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt, clippy
+                  override: true
+
+            - name: Install eBPF dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    build-essential \
+                    libclang-dev \
+                    linux-headers-$(uname -r) \
+                    pkg-config \
+                    libssl-dev \
+                    zlib1g-dev
+
+            - name: Install bpf-linker
+              run: cargo install bpf-linker
+
+            - name: Cache cargo registry
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cargo/registry
+                  key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo index
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cargo/git
+                  key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo build
+              uses: actions/cache@v3
+              with:
+                  path: target
+                  key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Build eBPF program
+              run: |
+                  cd aya-minifirewall-ebpf
+                  cargo build --release --target bpfel-unknown-none
+                  cd ..
+
+            - name: Build userspace program
+              run: cargo build --release
+
+            - name: Create release directory
+              run: mkdir -p release
+
+            - name: Copy binaries
+              run: |
+                  cp target/release/aya-minifirewall release/
+                  cp aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf release/
+                  chmod +x release/aya-minifirewall
+
+            - name: Create build info
+              run: |
+                  echo "Build Date: $(date)" > release/build-info.txt
+                  echo "Git Commit: $(git rev-parse HEAD)" >> release/build-info.txt
+                  echo "Git Tag: $(git describe --tags --always)" >> release/build-info.txt
+                  echo "Rust Version: $(rustc --version)" >> release/build-info.txt
+                  echo "Kernel Version: $(uname -r)" >> release/build-info.txt
+
+            - name: Create archive
+              run: |
+                  cd release
+                  tar -czf aya-minifirewall-linux-x86_64.tar.gz *
+                  cd ..
+
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v3
+              with:
+                  name: aya-minifirewall-linux-x86_64
+                  path: release/aya-minifirewall-linux-x86_64.tar.gz
+
+    release:
+        name: Create Release
+        needs: build
+        runs-on: ubuntu-latest
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+        # 明确设置权限，确保可以创建 release
+        permissions:
+            contents: write
+            packages: write
+            id-token: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Download build artifacts
+              uses: actions/download-artifact@v3
+              with:
+                  name: aya-minifirewall-linux-x86_64
+                  path: release/
+
+            - name: Extract version
+              id: version
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+                  else
+                    echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: ${{ steps.version.outputs.VERSION }}
+                  name: Aya Mini Firewall ${{ steps.version.outputs.VERSION }}
+                  body: |
+                      ## Aya Mini Firewall ${{ steps.version.outputs.VERSION }}
+
+                      A simple firewall demo using Aya eBPF framework for Linux.
+
+                      ### Installation
+
+                      1. Download the archive for your platform
+                      2. Extract the files: `tar -xzf aya-minifirewall-linux-x86_64.tar.gz`
+                      3. Make executable: `chmod +x aya-minifirewall`
+
+                      ### Usage
+
+                      ```bash
+                      # Load firewall (requires root)
+                      sudo ./aya-minifirewall load --interface eth0
+
+                      # Manage rules
+                      sudo ./aya-minifirewall block-ip 192.168.1.100
+                      sudo ./aya-minifirewall block-port 80
+                      sudo ./aya-minifirewall list
+                      ```
+
+                      ### Requirements
+
+                      - Linux kernel 4.15+ with eBPF/XDP support
+                      - Root privileges
+                      - Network interface that supports XDP
+
+                      ### Files Included
+
+                      - `aya-minifirewall`: Main userspace program
+                      - `aya-minifirewall-ebpf`: eBPF kernel program
+                      - `build-info.txt`: Build information
+
+                      ### Build Information
+
+                      $(cat release/build-info.txt)
+                  files: |
+                      release/aya-minifirewall-linux-x86_64.tar.gz
+                  draft: false
+                  prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
+
+    test:
+        name: Test Build
+        runs-on: ubuntu-latest
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt, clippy
+                  override: true
+
+            - name: Install eBPF dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    build-essential \
+                    libclang-dev \
+                    linux-headers-$(uname -r) \
+                    pkg-config \
+                    libssl-dev \
+                    zlib1g-dev
+
+            - name: Install bpf-linker
+              run: cargo install bpf-linker
+
+            - name: Cache cargo registry
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cargo/registry
+                  key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo index
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cargo/git
+                  key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo build
+              uses: actions/cache@v3
+              with:
+                  path: target
+                  key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Check formatting
+              run: cargo fmt --all -- --check
+
+            - name: Run clippy
+              run: cargo clippy --all-targets --all-features -- -D warnings
+
+            - name: Build eBPF program
+              run: |
+                  cd aya-minifirewall-ebpf
+                  cargo build --release --target bpfel-unknown-none
+                  cd ..
+
+            - name: Build userspace program
+              run: cargo build --release
+
+            - name: Test help command
+              run: ./target/release/aya-minifirewall --help

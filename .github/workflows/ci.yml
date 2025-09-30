@@ -1,0 +1,76 @@
+name: CI
+
+on:
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main]
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    test:
+        name: Test and Build
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt, clippy
+                  override: true
+
+            - name: Install eBPF dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    build-essential \
+                    libclang-dev \
+                    linux-headers-$(uname -r) \
+                    pkg-config \
+                    libssl-dev \
+                    zlib1g-dev
+
+            - name: Install bpf-linker
+              run: cargo install bpf-linker
+
+            - name: Cache cargo registry
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cargo/registry
+                  key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo index
+              uses: actions/cache@v3
+              with:
+                  path: ~/.cargo/git
+                  key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Cache cargo build
+              uses: actions/cache@v3
+              with:
+                  path: target
+                  key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Check formatting
+              run: cargo fmt --all -- --check
+
+            - name: Run clippy
+              run: cargo clippy --all-targets --all-features -- -D warnings
+
+            - name: Build eBPF program
+              run: |
+                  cd aya-minifirewall-ebpf
+                  cargo build --release --target bpfel-unknown-none
+                  cd ..
+
+            - name: Build userspace program
+              run: cargo build --release
+
+            - name: Test help command
+              run: ./target/release/aya-minifirewall --help
