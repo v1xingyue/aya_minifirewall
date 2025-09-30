@@ -1,11 +1,12 @@
-#[cfg(target_os = "linux")]
-use aya::{
-    include_bytes_aligned,
-    programs::{Xdp, XdpFlags},
-    Bpf,
-};
-#[cfg(target_os = "linux")]
-use aya_log::BpfLogger;
+// eBPF imports - uncomment when building eBPF program
+// #[cfg(target_os = "linux")]
+// use aya::{
+//     include_bytes_aligned,
+//     programs::{Xdp, XdpFlags},
+//     Bpf,
+// };
+// #[cfg(target_os = "linux")]
+// use aya_log::BpfLogger;
 use clap::{Parser, Subcommand};
 use log::info;
 use std::net::Ipv4Addr;
