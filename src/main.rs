@@ -2,10 +2,10 @@
 use aya::{
     include_bytes_aligned,
     programs::{Xdp, XdpFlags},
-    Ebpf,
+    Bpf,
 };
 #[cfg(target_os = "linux")]
-use aya_log::EbpfLogger;
+use aya_log::BpfLogger;
 use clap::{Parser, Subcommand};
 use log::info;
 use std::net::Ipv4Addr;
@@ -93,10 +93,10 @@ fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
     #[cfg(target_os = "linux")]
     {
         // Load the compiled eBPF object file
-        let mut bpf = Ebpf::load(include_bytes_aligned!(
+        let mut bpf = Bpf::load(include_bytes_aligned!(
             "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf"
         ))?;
-        EbpfLogger::init(&mut bpf)?;
+        BpfLogger::init(&mut bpf)?;
 
         let program: &mut Xdp = bpf.program_mut("aya_minifirewall").unwrap().try_into()?;
         program.load()?;
