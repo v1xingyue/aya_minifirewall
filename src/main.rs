@@ -2,10 +2,10 @@
 use aya::{
     include_bytes_aligned,
     programs::{Xdp, XdpFlags},
-    Bpf,
+    Ebpf,
 };
 #[cfg(target_os = "linux")]
-use aya_log::BpfLogger;
+use aya_log::EbpfLogger;
 use clap::{Parser, Subcommand};
 use log::info;
 use std::net::Ipv4Addr;
@@ -92,19 +92,11 @@ fn main() -> Result<(), anyhow::Error> {
 fn load_firewall(interface: &str) -> Result<(), anyhow::Error> {
     #[cfg(target_os = "linux")]
     {
-        // Check if eBPF program exists
-        let ebpf_path =
-            "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf";
-        if !std::path::Path::new(ebpf_path).exists() {
-            return Err(anyhow::anyhow!(
-                "eBPF program not found at {}. Please build the eBPF program first with: cd aya-minifirewall-ebpf && cargo build --release --target bpfel-unknown-none",
-                ebpf_path
-            ));
-        }
-
         // Load the compiled eBPF object file
-        let mut bpf = Bpf::load(include_bytes_aligned!(ebpf_path))?;
-        BpfLogger::init(&mut bpf)?;
+        let mut bpf = Ebpf::load(include_bytes_aligned!(
+            "../aya-minifirewall-ebpf/target/bpfel-unknown-none/release/aya-minifirewall-ebpf"
+        ))?;
+        EbpfLogger::init(&mut bpf)?;
 
         let program: &mut Xdp = bpf.program_mut("aya_minifirewall").unwrap().try_into()?;
         program.load()?;
